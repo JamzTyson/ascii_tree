@@ -1,6 +1,7 @@
 """Project idea based on: https://github.com/rahulbordoloi/Directory-Tree/"""
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from itertools import pairwise
@@ -262,6 +263,25 @@ def replace_symbol(prefix: str,
     return prefix
 
 
+def validate_root_path(root_dir: str) -> Path:
+    """Validate root directory and return as an absolute path.
+
+    Raises:
+        ValueError: root_dir argument is not a valid file path.
+
+    Returns:
+        Path: Absolute Path
+    """
+    root_as_path = Path(root_dir)
+
+    if root_as_path.exists() and root_as_path.is_dir():
+        root_as_path = root_as_path.resolve()
+        logger.debug(f"Root path={root_as_path}")
+        return root_as_path
+    else:
+        raise ValueError(f"Directory not valid: '{root_dir}'.")
+
+
 def main(root_dir: Path, exclude: Excluded) -> None:
     """Construct and print directory tree."""
     nodes: Tree = Tree(root_dir, exclude)
@@ -271,13 +291,13 @@ def main(root_dir: Path, exclude: Excluded) -> None:
 
 
 if __name__ == '__main__':
-    root_path = Path("../testing_data/Test_1")
+    test_dir = "../testing_data/Test_12"
 
-    if root_path.exists() and root_path.is_dir():
-        root_path = root_path.resolve()
-        logger.debug(f"Root path={root_path}")
+    try:
+        root_path = validate_root_path(test_dir)
+    except ValueError as exc:
+        print(f"{exc}")
+        sys.exit(1)
 
-        excluded = Excluded()
-        main(root_path, excluded)
-    else:
-        print("Directory not valid.")
+    excluded = Excluded()
+    main(root_path, excluded)

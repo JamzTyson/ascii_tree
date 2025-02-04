@@ -170,8 +170,8 @@ class Tree:
 
 def transform_trailing_prefix(prefix: str) -> str:
     """Replace final symbol for proper continuation to next level."""
-    prefix = replace_symbol(prefix, Symbol.CONTINUE, Symbol.BRANCH, True)
-    prefix = replace_symbol(prefix, Symbol.INDENT, Symbol.FINAL, True)
+    prefix = replace_trailing_symbol(prefix, Symbol.CONTINUE, Symbol.BRANCH)
+    prefix = replace_trailing_symbol(prefix, Symbol.INDENT, Symbol.FINAL)
     return prefix
 
 
@@ -198,7 +198,7 @@ def transform_prefix(parent: Node) -> str:
         str: The constructed prefix for the node.
     """
     new_prefix = transform_trailing_prefix(parent.prefix)
-    new_prefix = replace_symbol(new_prefix, Symbol.CONTINUE, Symbol.BRANCH)
+    new_prefix = replace_leading_symbol(new_prefix, Symbol.CONTINUE, Symbol.BRANCH)
 
     parent_has_siblings = parent.dirs or parent.files
     if parent_has_siblings:
@@ -209,8 +209,7 @@ def transform_prefix(parent: Node) -> str:
     return new_prefix
 
 
-def append_file_lines(
-        file_lines: list[str], node: Node) -> list[str]:
+def append_file_lines(file_lines: list[str], node: Node) -> list[str]:
     """Append file lines, ensuring termination with FINAL prefix.
 
     The file prefix is derived from its parent by replacing the final
@@ -228,29 +227,37 @@ def append_file_lines(
     return file_lines
 
 
-def replace_symbol(prefix: str,
-                   new_symbol: Symbol,
-                   old_symbol: Symbol,
-                   reverse: bool = False) -> str:
-    """Replace initial or final symbol in prefix string.
+def replace_leading_symbol(
+        prefix: str, new_symbol: Symbol, match_symbol: Symbol) -> str:
+    """Replace initial symbol in prefix string when it matches specified symbol.
 
-    Args:
-        prefix: The prefix to modify.
-        new_symbol: The new symbol to use.
-        old_symbol: If present, the symbol will only be replaced if it matches.
-            Default = None.
-        reverse: If True, replace the final symbol, else replace the first.
-            Default = False.
+        Args:
+            prefix: The prefix to modify.
+            new_symbol: The new symbol to use.
+            match_symbol: The symbol will only be replaced if it matches.
 
-    Returns:
-        str: The modified string.
-    """
-    if reverse:
-        if old_symbol.value == prefix[-SYMBOL_LEN:]:
-            return prefix[:-SYMBOL_LEN] + new_symbol.value
+        Returns:
+            str: The modified string.
+        """
+    if prefix.startswith(match_symbol.value):
+        return prefix[:-SYMBOL_LEN] + new_symbol.value
+    return prefix
 
-    if prefix.startswith(str(old_symbol.value)):
-        return new_symbol.value + prefix[SYMBOL_LEN:]
+
+def replace_trailing_symbol(
+        prefix: str, new_symbol: Symbol, match_symbol: Symbol) -> str:
+    """Replace final symbol in prefix string when it matches specified symbol.
+
+        Args:
+            prefix: The prefix to modify.
+            new_symbol: The new symbol to use.
+            match_symbol: The symbol will only be replaced if it matches.
+
+        Returns:
+            str: The modified string.
+        """
+    if prefix.endswith(match_symbol.value):
+        return prefix[:-SYMBOL_LEN] + new_symbol.value
     return prefix
 
 

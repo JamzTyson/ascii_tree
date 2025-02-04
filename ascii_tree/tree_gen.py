@@ -168,6 +168,13 @@ class Tree:
             node.prefix = transform_prefix(parent_node)
 
 
+def transform_trailing_prefix(prefix: str) -> str:
+    """Replace final symbol for proper continuation to next level."""
+    prefix = replace_symbol(prefix, Symbol.CONTINUE, Symbol.BRANCH, True)
+    prefix = replace_symbol(prefix, Symbol.INDENT, Symbol.FINAL, True)
+    return prefix
+
+
 def transform_prefix(parent: Node) -> str:
     """Transform parent prefix to create prefix for directory node.
 
@@ -190,16 +197,8 @@ def transform_prefix(parent: Node) -> str:
     Returns:
         str: The constructed prefix for the node.
     """
-    new_prefix = parent.prefix
-
-    transformations = [
-        (Symbol.BRANCH, Symbol.CONTINUE, False),  # Leading BRANCH → CONTINUE
-        (Symbol.BRANCH, Symbol.CONTINUE, True),  # Trailing BRANCH → CONTINUE
-        (Symbol.FINAL, Symbol.INDENT, True),  # Trailing FINAL → INDENT
-    ]
-    for old_symbol, new_symbol, reverse in transformations:
-        new_prefix = replace_symbol(
-            new_prefix, new_symbol, old_symbol, reverse)
+    new_prefix = transform_trailing_prefix(parent.prefix)
+    new_prefix = replace_symbol(new_prefix, Symbol.CONTINUE, Symbol.BRANCH)
 
     parent_has_siblings = parent.dirs or parent.files
     if parent_has_siblings:
@@ -221,15 +220,7 @@ def append_file_lines(
     Returns:
         list[str]: The updated list.
     """
-    file_prefix = node.prefix
-
-    transformations = [
-        (Symbol.BRANCH, Symbol.CONTINUE, True),  # Trailing BRANCH -> CONTINUE
-        (Symbol.FINAL, Symbol.INDENT, True),  # Trailing FINAL -> INDENT
-    ]
-    for old_symbol, new_symbol, reverse in transformations:
-        file_prefix = replace_symbol(
-            file_prefix, new_symbol, old_symbol, reverse)
+    file_prefix = transform_trailing_prefix(node.prefix)
 
     for file in node.files[:-1]:
         file_lines.append(f'{file_prefix}{Symbol.BRANCH.value}{file}')
@@ -291,7 +282,7 @@ def main(root_dir: Path, exclude: Excluded) -> None:
 
 
 if __name__ == '__main__':
-    test_dir = "../testing_data/Test_12"
+    test_dir = "../testing_data/Test_8"
 
     try:
         root_path = validate_root_path(test_dir)

@@ -69,46 +69,23 @@ class Tree:
     def __str__(self) -> str:
         """Return tree as formatted string."""
         output_strings: list[str] = []
-        files_to_add_nodes: list[Node] = []
+        stack: list[Node] = []  # Tracks parent directories with pending files
 
-        # We need to keep track of which Node's files have been added to
-        # `output_strings`, so that we can remove the node from
-        # `files_to_add_nodes` after iterating over it.
-        files_added_nodes: list[Node] = []
+        for node in self.nodes.values():
+            # When moving up the tree (current depth <= previous), flush files from deeper directories
+            while stack and stack[-1].depth >= node.depth:
+                parent = stack.pop()
+                output_strings = append_file_lines(output_strings, parent)
 
-        for node, next_node in pairwise(self.nodes.values()):
-            output_strings.append(
-                f'{node.prefix}{node.name}{Symbol.DIR.value}')
-
+            # Add directory line and push to stack if it has files
+            output_strings.append(f"{node.prefix}{node.name}{Symbol.DIR.value}")
             if node.files:
-                files_to_add_nodes.append(node)
+                stack.append(node)
 
-            for file_node in reversed(files_to_add_nodes):
-                # Check if we can add file output_strings yet.
-                # Iterating in reverse to retain correct insertion order.
-                if file_node.depth >= next_node.depth:
-                    output_strings = append_file_lines(output_strings, file_node)
-                    files_added_nodes.append(file_node)  # Marked for removal.
-
-            # Remove nodes from `files_to_add_nodes` after they have been added
-            # to `output_strings`.
-            for n in files_added_nodes:
-                files_to_add_nodes.remove(n)
-            files_added_nodes.clear()
-
-        # End of pairwise loop.
-
-        last_node = next(reversed(self.nodes.values()))
-        output_strings.append(f'{last_node.prefix}{
-                              last_node.name}{Symbol.DIR.value}')
-
-        if last_node.files:
-            # We can add directly as there are no more directories.
-            output_strings = append_file_lines(output_strings, last_node)
-
-        # Add any remaining files.
-        for file_node in reversed(files_to_add_nodes):
-            output_strings = append_file_lines(output_strings, file_node)
+        # Flush any remaining files after processing all nodes
+        while stack:
+            parent = stack.pop()
+            output_strings = append_file_lines(output_strings, parent)
 
         return '\n'.join(output_strings)
 

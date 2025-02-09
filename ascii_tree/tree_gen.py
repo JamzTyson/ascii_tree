@@ -1,10 +1,11 @@
 """Project idea based on: https://github.com/rahulbordoloi/Directory-Tree/"""
 import logging
 import os
+import re
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from itertools import pairwise
+import fnmatch
 from pathlib import Path
 
 from ascii_tree.logging_config import configure_logging, LOGGER_NAME
@@ -14,15 +15,65 @@ configure_logging()
 logger = logging.getLogger(LOGGER_NAME)
 
 
-@dataclass
-class Excluded:
-    """Boolean flags to ignore some files / directories."""
-    HIDDEN_DIRS: bool = True
-    HIDDEN_FILES: bool = True
-    # Not currently used.
-    # Will contain patterns that can be filtered by fnmatch.fnmatch
-    # EXCLUDED_DIRS: list[str] = []
-    # EXCLUDED_FILES: list[str] = []
+class Filters:
+    """Manage file and directory filters."""
+
+    def __init__(
+            self,
+            exclude_hidden_dirs: bool = True,
+            exclude_hidden_files: bool = True,
+            include_dirs: list[str] = None,
+            include_files: list[str] = None,
+            exclude_dirs: list[str] = None,
+            exclude_files: list[str] = None,
+    ) -> None:
+        """Initialise Unix-style filename patterns.
+
+        Args:
+            exclude_hidden_dirs: Whether to exclude hidden directories.
+            exclude_hidden_files: Whether to exclude hidden files.
+            include_dirs: Patterns to include directories.
+            include_files: Patterns to include files.
+            exclude_dirs: Patterns to exclude directories.
+            exclude_files: Patterns to exclude files.
+        """
+        self._include_dirs = include_dirs or []
+        self._include_files = include_files or []
+        self._exclude_dirs = exclude_dirs or []
+        self._exclude_files = exclude_files or []
+
+        if exclude_hidden_dirs:
+            self._exclude_dirs.append(".*")
+        if exclude_hidden_files:
+            self._exclude_files.append(".*")
+
+    @staticmethod
+    def _combine_patterns(patterns: list[str]) -> re.Pattern | None:
+        """Combine multiple fnmatch patterns into a single regex."""
+        if not patterns:
+            return None
+        combined = "|".join(fnmatch.translate(pattern) for pattern in patterns)
+        return re.compile(combined)
+
+    @property
+    def include_dirs(self) -> re.Pattern | None:
+        """Return a single regex for directory inclusion patterns."""
+        return self._combine_patterns(self._include_dirs)
+
+    @property
+    def include_files(self) -> re.Pattern | None:
+        """Return a single regex for file inclusion patterns."""
+        return self._combine_patterns(self._include_files)
+
+    @property
+    def exclude_dirs(self) -> re.Pattern | None:
+        """Return a single regex for directory exclusion patterns."""
+        return self._combine_patterns(self._exclude_dirs)
+
+    @property
+    def exclude_files(self) -> re.Pattern | None:
+        """Return a single regex for file exclusion patterns."""
+        return self._combine_patterns(self._exclude_files)
 
 
 SYMBOL_LEN = 4
@@ -59,9 +110,9 @@ class Node:
 class Tree:
     """Directory tree."""
 
-    def __init__(self, top: Path, ignore_types: Excluded) -> None:
+    def __init__(self, top: Path, filters: Filters) -> None:
         self.top = top
-        self.ignore = ignore_types
+        self.filters = filters
         self.nodes: dict[Path, Node] = {}
         self.populate()
         self.prefix_nodes()
@@ -99,17 +150,32 @@ class Tree:
             depth = len(directory.parts) - root_depth
             self.nodes[directory] = Node(directory, dirs, files, depth)
 
+    @staticmethod
+    def do_filter(items: list[str],
+                  include_re: re.Pattern | None,
+                  exclude_re: re.Pattern | None) -> list[str]:
+        """Filter items based on inclusion and exclusion regex patterns.
+
+            Args:
+                items: The list of items (e.g., files or directories) to filter.
+                include_re: A regex pattern for inclusion (None means include all).
+                exclude_re: A regex pattern for exclusion (None means exclude none).
+
+            Returns:
+                A list of items that satisfy the inclusion/exclusion criteria.
+            """
+        return [i for i in items
+                if (not include_re or include_re.match(i)) and
+                (not exclude_re or not exclude_re.match(i))]
+
     def filter_files(self, files: list[str]) -> list[str]:
         """Filter and sort files as required.
 
         Returns:
             list[str]: The sorted and filtered file list.
         """
-        if self.ignore.HIDDEN_FILES:
-            files = sorted(
-                [f for f in files if not f.startswith('.')])
-            return files
-        return sorted(files)
+        return sorted(self.do_filter(
+            files, self.filters.include_files, self.filters.exclude_files))
 
     def filter_dirs(self, directories: list[str]) -> list[str]:
         """Filter and sort directories as required.
@@ -117,11 +183,8 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered directory list.
         """
-        if self.ignore.HIDDEN_DIRS:
-            directories = sorted(
-                [d for d in directories if not d.startswith('.')])
-            return directories
-        return sorted(directories)
+        return sorted(self.do_filter(
+            directories, self.filters.include_dirs, self.filters.exclude_dirs))
 
     def prefix_nodes(self) -> None:
         """Assign visual prefix to each Node in the Tree."""
@@ -257,16 +320,16 @@ def validate_root_path(root_dir: str) -> Path:
         raise ValueError(f"Directory not valid: '{root_dir}'.")
 
 
-def main(root_dir: Path, exclude: Excluded) -> None:
+def main(root_dir: Path, filters: Filters) -> None:
     """Construct and print directory tree."""
-    nodes: Tree = Tree(root_dir, exclude)
+    nodes: Tree = Tree(root_dir, filters)
     print(nodes)
     with open("results.txt", 'wt', encoding='utf-8') as fp:
         fp.write(str(nodes))
 
 
 if __name__ == '__main__':
-    test_dir = "../testing_data/Test_8"
+    test_dir = "../testing_data/Test_3"
 
     try:
         root_path = validate_root_path(test_dir)
@@ -274,5 +337,6 @@ if __name__ == '__main__':
         print(f"{exc}")
         sys.exit(1)
 
-    excluded = Excluded()
+    excluded = Filters(exclude_hidden_dirs=False,
+                       exclude_hidden_files=False)
     main(root_path, excluded)

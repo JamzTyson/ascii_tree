@@ -330,13 +330,12 @@ def append_file_lines(file_lines: list[str], node: Node) -> list[str]:
     file_prefix = transform_trailing_prefix(node.prefix)
 
     try:
-        # Attempt to process files
         for file in node.files[:-1]:
             file_lines.append(f'{file_prefix}{Symbol.BRANCH.value}{file}')
         file_lines.append(f'{file_prefix}{Symbol.FINAL.value}{node.files[-1]}')
     except IndexError:
-        logger.fatal("Unexpected empty files list in node: %s (path: %s).",
-                     node.name, node.dir_path)
+        logger.critical("Unexpected empty files list in node: %s (path: %s).",
+                        node.name, node.dir_path)
         sys.exit(1)
 
     return file_lines

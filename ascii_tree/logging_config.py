@@ -20,52 +20,67 @@ LOGGING_ENABLED: bool = True
 LOGGER_NAME: str = 'ascii_tree'
 
 LOG_TO_CONSOLE: bool = True
-CONSOLE_LOG_LEVEL = logging.DEBUG
+CONSOLE_LOG_LEVEL: int = logging.DEBUG
 CONSOLE_LOG_FORMAT: str = "%(levelname)s:%(message)s"
 
 LOG_TO_FILE: bool = True
-LOG_FILE: str = str(Path(tempfile.gettempdir()) / (LOGGER_NAME + '.log'))
 FILE_LOG_FORMAT: str = "%(asctime)s:%(levelname)s:%(message)s"
 FILE_LOG_LEVEL: int = logging.WARNING
 
+_LOG_DIR: Path = Path(tempfile.gettempdir())
+LOG_FILE: Path = _LOG_DIR / (LOGGER_NAME + '.log')
 
-if LOGGING_ENABLED and LOG_TO_FILE:
+
+def _validate_log_file(file_path: Path) -> None:
+    """Ensure log file directory exists and is writable.
+
+    Args:
+        file_path: The path to validate.
+
+    Notes:
+        The parent directory is expected to exist. If you are happy for
+        ancestors to be created, change mkdir to `parents=True`.
+
+    Raises:
+        OSError: On any filesystem error that prevents logging.
+    """
     try:
-        Path(LOG_FILE).parent.mkdir(exist_ok=True)
-        with open(LOG_FILE, 'a'):
-            pass
-    except (FileNotFoundError, PermissionError, OSError) as exc:
-        raise OSError(f"Invalid LOG_FILE '{LOG_FILE}': {exc}") from exc
+        file_path.parent.mkdir(exist_ok=True, parents=False)
+        file_path.touch(exist_ok=True)
+    except OSError as exc:
+        raise OSError(f"Invalid LOG_FILE '{file_path}': {exc}") from exc
 
 
 def configure_logging() -> None:
     """Configures logging for the application."""
-    if not LOGGING_ENABLED:
-        logging.disable(logging.CRITICAL + 1)  # Disable all logging if not enabled
-        return
-
-    # Set root logger level to NOTSET to delegate log level to handlers.
-    logging.getLogger().setLevel(logging.NOTSET)
     logger = logging.getLogger(LOGGER_NAME)
 
-    if logger.hasHandlers():
-        logger.handlers.clear()
+    if not LOGGING_ENABLED:
+        logger.addHandler(logging.NullHandler())
+        logger.propagate = False
+        return
 
-    handlers: list[logging.Handler] = []
+    # Safely remove any existing handlers.
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    logger.propagate = False
+
     if LOG_TO_FILE:
+        _validate_log_file(LOG_FILE)
         file_handler = logging.FileHandler(LOG_FILE)
         file_handler.setLevel(FILE_LOG_LEVEL)
         file_handler.setFormatter(logging.Formatter(FILE_LOG_FORMAT))
-        handlers.append(file_handler)
+        logger.addHandler(file_handler)
 
     if LOG_TO_CONSOLE:
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(CONSOLE_LOG_LEVEL)
-        stream_handler.setFormatter(logging.Formatter(CONSOLE_LOG_FORMAT))
-        handlers.append(stream_handler)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(CONSOLE_LOG_LEVEL)
+        console_handler.setFormatter(logging.Formatter(CONSOLE_LOG_FORMAT))
+        logger.addHandler(console_handler)
 
-    for handler in handlers:
-        logger.addHandler(handler)
-
-    # Logging level set per handler
-    logger.setLevel(logging.NOTSET)
+    # Set the base logger level to the lowest handler level.
+    # Sends CRITICAL messages to stderr through
+    # logging.lastResort fallback when no handlers are configured.
+    logger.setLevel(min(h.level for h in logger.handlers)
+                    if logger.handlers else logging.CRITICAL)

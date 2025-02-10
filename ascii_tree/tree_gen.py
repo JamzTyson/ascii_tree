@@ -1,4 +1,29 @@
-"""Project idea based on: https://github.com/rahulbordoloi/Directory-Tree/"""
+"""ASCII Tree Generator
+
+A command-line tool for generating a plain text representation
+of a directory tree. Output may be to the terminal, to a text file,
+or both.
+
+Main Features:
+
+    Iterative tree traversal:
+        Can potentially handle extremely large/deep directory trees.
+
+    Flexible Pattern Handling:
+        Manages inclusion and exclusion patterns for files and directories.
+
+    Visual Formatting with Unicode Symbols:
+        Produces a clear and visually appealing text representation of the
+        tree structure.
+
+    Optional Logging:
+        Configurable through logging_config.py
+
+Dependencies:
+    Python >= 3.10
+
+"""
+
 import logging
 import os
 import re
@@ -188,7 +213,8 @@ class Tree:
         stack: list[Node] = []  # Tracks parent directories with pending files
 
         for node in self.nodes.values():
-            # When moving up the tree (current depth <= previous), flush files from deeper directories
+            # When moving up the tree (current depth <= previous)
+            # flush files from deeper directories
             while stack and stack[-1].depth >= node.depth:
                 parent = stack.pop()
                 output_strings = append_file_lines(output_strings, parent)

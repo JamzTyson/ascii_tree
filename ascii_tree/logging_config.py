@@ -16,7 +16,7 @@ import logging
 import tempfile
 from pathlib import Path
 
-LOGGING_ENABLED: bool = False
+LOGGING_ENABLED: bool = True
 LOGGER_NAME: str = 'ascii_tree'
 
 LOG_TO_CONSOLE: bool = True
@@ -44,7 +44,10 @@ def configure_logging() -> None:
         logging.disable(logging.CRITICAL + 1)  # Disable all logging if not enabled
         return
 
+    # Set root logger level to NOTSET to delegate log level to handlers.
+    logging.getLogger().setLevel(logging.NOTSET)
     logger = logging.getLogger(LOGGER_NAME)
+
     if logger.hasHandlers():
         logger.handlers.clear()
 

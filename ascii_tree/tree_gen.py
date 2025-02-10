@@ -321,14 +321,24 @@ def append_file_lines(file_lines: list[str], node: Node) -> list[str]:
     Symbol BRANCH to CONTINUE, or FINAL to INDENT, then adding a Symbol for
     the file itself.
 
+    Raises:
+        SystemExit: If `node.files` is empty (unexpected state).
+
     Returns:
         list[str]: The updated list.
     """
     file_prefix = transform_trailing_prefix(node.prefix)
 
-    for file in node.files[:-1]:
-        file_lines.append(f'{file_prefix}{Symbol.BRANCH.value}{file}')
-    file_lines.append(f'{file_prefix}{Symbol.FINAL.value}{node.files[-1]}')
+    try:
+        # Attempt to process files
+        for file in node.files[:-1]:
+            file_lines.append(f'{file_prefix}{Symbol.BRANCH.value}{file}')
+        file_lines.append(f'{file_prefix}{Symbol.FINAL.value}{node.files[-1]}')
+    except IndexError:
+        logger.fatal("Unexpected empty files list in node: %s (path: %s).",
+                     node.name, node.dir_path)
+        sys.exit(1)
+
     return file_lines
 
 

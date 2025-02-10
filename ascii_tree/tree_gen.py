@@ -17,15 +17,17 @@ logger = logging.getLogger(LOGGER_NAME)
 
 class Filters:
     """Manage file and directory filters."""
+    PatternInput = str | list[str] | None  # Alias for pattern input.
+    unix_hidden = '.*'
 
     def __init__(
             self,
             exclude_hidden_dirs: bool = True,
             exclude_hidden_files: bool = True,
-            include_dirs: list[str] = None,
-            include_files: list[str] = None,
-            exclude_dirs: list[str] = None,
-            exclude_files: list[str] = None,
+            include_dirs: PatternInput = None,
+            include_files: PatternInput = None,
+            exclude_dirs: PatternInput = None,
+            exclude_files: PatternInput = None,
     ) -> None:
         """Initialise Unix-style filename patterns.
 
@@ -37,21 +39,48 @@ class Filters:
             exclude_dirs: Patterns to exclude directories.
             exclude_files: Patterns to exclude files.
         """
-        self._include_dirs = include_dirs or []
-        self._include_files = include_files or []
-        self._exclude_dirs = exclude_dirs or []
-        self._exclude_files = exclude_files or []
+        self._include_dirs = self._sanitize_patterns(include_dirs)
+        self._include_files = self._sanitize_patterns(include_files)
+        self._exclude_dirs = self._sanitize_patterns(exclude_dirs)
+        self._exclude_files = self._sanitize_patterns(exclude_files)
 
-        if exclude_hidden_dirs:
-            self._exclude_dirs.append(".*")
-        if exclude_hidden_files:
-            self._exclude_files.append(".*")
+        # If Linux / macOS, add patterns for hidden files/directories.
+        if exclude_hidden_dirs and Filters.unix_hidden not in self._exclude_dirs:
+            self._exclude_dirs.append(Filters.unix_hidden)
+        if exclude_hidden_files and Filters.unix_hidden not in self._exclude_files:
+            self._exclude_files.append(Filters.unix_hidden)
+
+    @staticmethod
+    def _sanitize_patterns(patterns: PatternInput) -> list[str]:
+        """Ensure patterns are in a list of unique strings.
+
+        Args:
+            patterns: A single string, a list of strings, or None.
+
+        Returns:
+            A list of strings.
+
+        Raises:
+            ValueError: If the input is not a string, a list of strings, or None.
+        """
+        if patterns is None:
+            return []
+
+        if isinstance(patterns, str):
+            return [patterns]
+
+        if isinstance(patterns, list) and all(isinstance(p, str) for p in patterns):
+            return list(set(patterns))  # Remove duplicates.
+
+        raise ValueError(f"Invalid pattern in {patterns}.")
 
     @staticmethod
     def _combine_patterns(patterns: list[str]) -> re.Pattern | None:
-        """Combine multiple fnmatch patterns into a single regex."""
+        """Combine multiple wildcard patterns into a single regex."""
         if not patterns:
             return None
+        if len(patterns) == 1:
+            return re.compile(fnmatch.translate(patterns[0]))
         combined = "|".join(fnmatch.translate(pattern) for pattern in patterns)
         return re.compile(combined)
 
@@ -60,20 +89,56 @@ class Filters:
         """Return a single regex for directory inclusion patterns."""
         return self._combine_patterns(self._include_dirs)
 
+    @include_dirs.setter
+    def include_dirs(self, patterns: PatternInput) -> None:
+        """Set list of patterns that define included directories.
+
+        Raises:
+            ValueError: if `patterns` is invalid.
+        """
+        self._include_dirs = self._sanitize_patterns(patterns)
+
     @property
     def include_files(self) -> re.Pattern | None:
         """Return a single regex for file inclusion patterns."""
         return self._combine_patterns(self._include_files)
+
+    @include_files.setter
+    def include_files(self, patterns: PatternInput) -> None:
+        """Set list of patterns that define included directories.
+
+        Raises:
+            ValueError: if `patterns` is invalid.
+        """
+        self._include_files = self._sanitize_patterns(patterns)
 
     @property
     def exclude_dirs(self) -> re.Pattern | None:
         """Return a single regex for directory exclusion patterns."""
         return self._combine_patterns(self._exclude_dirs)
 
+    @exclude_dirs.setter
+    def exclude_dirs(self, patterns: PatternInput) -> None:
+        """Set list of patterns that define excluded directories.
+
+        Raises:
+            ValueError: if `patterns` is invalid.
+        """
+        self._exclude_dirs = self._sanitize_patterns(patterns)
+
     @property
     def exclude_files(self) -> re.Pattern | None:
         """Return a single regex for file exclusion patterns."""
         return self._combine_patterns(self._exclude_files)
+
+    @exclude_files.setter
+    def exclude_files(self, patterns: PatternInput) -> None:
+        """Set list of patterns that define excluded files.
+
+        Raises:
+            ValueError: if `patterns` is invalid.
+        """
+        self._exclude_files = self._sanitize_patterns(patterns)
 
 
 SYMBOL_LEN = 4
@@ -199,11 +264,11 @@ class Tree:
 
             try:
                 parent_node.dirs.remove(node.name)
-            except ValueError as exc:
+            except ValueError as e:
                 logger.warning(
                     "Failed to remove '{}' from parent '{}' dirs. "
                     "Current dirs: {}. {}".format(
-                        node.name, parent_node.name, parent_node.dirs, exc))
+                        node.name, parent_node.name, parent_node.dirs, e))
 
             node.prefix = transform_prefix(parent_node)
 
@@ -338,5 +403,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     excluded = Filters(exclude_hidden_dirs=False,
+                       # exclude_dirs=['v*'],
                        exclude_hidden_files=False)
     main(root_path, excluded)

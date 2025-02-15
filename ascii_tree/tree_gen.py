@@ -200,7 +200,7 @@ class Node:
 class Tree:
     """Directory tree."""
 
-    def __init__(self, top: Path, filters: Filters) -> None:
+    def __init__(self, top: Path, filters: Filters = None) -> None:
         self.top = top
         self.filters = filters
         self.nodes: dict[Path, Node] = {}
@@ -265,6 +265,8 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered file list.
         """
+        if self.filters is None:
+            return sorted(files)
         return sorted(self.do_filter(
             files, self.filters.include_files, self.filters.exclude_files))
 
@@ -274,6 +276,8 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered directory list.
         """
+        if self.filters is None:
+            return sorted(directories)
         return sorted(self.do_filter(
             directories, self.filters.include_dirs, self.filters.exclude_dirs))
 
@@ -420,7 +424,7 @@ def validate_root_path(root_dir: str) -> Path:
         raise ValueError(f"Directory not valid: '{root_dir}'.")
 
 
-def main(root_dir: Path, filters: Filters) -> None:
+def main(root_dir: Path, filters: Filters = None) -> None:
     """Construct and print directory tree."""
     nodes: Tree = Tree(root_dir, filters)
     print(nodes)

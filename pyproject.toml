@@ -1,14 +1,16 @@
 [tool.poetry]
-name = "ascii-tree-diagram"
+name = "ascii_tree"
 version = "0.1.0"
 description = "A CLI utility to visualise directory structures as ASCII folder diagrams."
 authors = ["JamzTyson"]
 license = "MIT"
 readme = "README.md"
 
+[tool.poetry.scripts]
+asciitree = "ascii_tree.cli:main"
+
 [tool.poetry.dependencies]
 python = "^3.12"
-
 
 [build-system]
 requires = ["poetry-core"]

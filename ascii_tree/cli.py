@@ -162,7 +162,7 @@ def main():
         logger.debug(f'{arg}: {value}')
 
     # TODO:
-    # tree_gen.main(validate_path(args.root_dir))
+    tree_gen.main(validate_path(args.root_dir))
 
 
 if __name__ == '__main__':

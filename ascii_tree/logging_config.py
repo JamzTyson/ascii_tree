@@ -23,7 +23,7 @@ LOG_TO_CONSOLE: bool = True
 CONSOLE_LOG_LEVEL: int = logging.DEBUG
 CONSOLE_LOG_FORMAT: str = "%(levelname)s:%(message)s"
 
-LOG_TO_FILE: bool = True
+LOG_TO_FILE: bool = False
 FILE_LOG_FORMAT: str = "%(asctime)s:%(levelname)s:%(message)s"
 FILE_LOG_LEVEL: int = logging.WARNING
 

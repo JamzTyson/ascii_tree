@@ -4,4 +4,4 @@ A CLI utility to visualise directory structures as ASCII folder diagrams.
 
 ## Dependencies
 
-Requires Pythoon >= 3.11
+Requires Python >= 3.11

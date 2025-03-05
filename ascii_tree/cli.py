@@ -20,7 +20,7 @@ def get_version() -> str:
         return "unknown"
 
     with pyproject_path.open("rb") as f:
-        pyproject_data = tomllib.load(f)  # Use toml.load(f) if on Python < 3.11
+        pyproject_data = tomllib.load(f)
 
     return pyproject_data.get("tool", {}).get("poetry", {}).get("version", "unknown")
 

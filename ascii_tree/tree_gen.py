@@ -66,7 +66,7 @@ class Tree:
     """Directory tree."""
 
     def __init__(self, config: TreeGenConfig) -> None:
-        #top: Path, filters: Filters = None
+        """Initialise Tree instance."""
         self.config = config
         self.nodes: dict[Path, Node] = {}
         self.populate()
@@ -116,14 +116,14 @@ class Tree:
                   exclude_re: re.Pattern | None) -> list[str]:
         """Filter items based on inclusion and exclusion regex patterns.
 
-            Args:
-                items: The list of items (e.g., files or directories) to filter.
-                include_re: A regex pattern for inclusion (None means include all).
-                exclude_re: A regex pattern for exclusion (None means exclude none).
+        Args:
+            items: The list of items (e.g., files or directories) to filter.
+            include_re: A regex pattern for inclusion (None means include all).
+            exclude_re: A regex pattern for exclusion (None means exclude none).
 
-            Returns:
-                A list of items that satisfy the inclusion/exclusion criteria.
-            """
+        Returns:
+            A list of items that satisfy the inclusion/exclusion criteria.
+        """
         return [i for i in items
                 if (not include_re or include_re.match(i)) and
                 (not exclude_re or not exclude_re.match(i))]
@@ -134,10 +134,11 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered file list.
         """
-        if self.config.exclude_files is None:
+        if self.config.filters is None:
             return sorted(files)
-        return sorted(self.do_filter(
-            files, self.config.include_files, self.config.exclude_files))
+        include = self.config.filters.include_files
+        exclude = self.config.filters.exclude_files
+        return sorted(self.do_filter(files, include, exclude))
 
     def filter_dirs(self, directories: list[str]) -> list[str]:
         """Filter and sort directories as required.
@@ -145,10 +146,11 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered directory list.
         """
-        if self.config.include_dirs is None and self.config.exclude_dirs is None:
+        if self.config.filters is None:
             return sorted(directories)
-        return sorted(self.do_filter(
-            directories, self.config.include_dirs, self.config.exclude_dirs))
+        include = self.config.filters.include_dirs
+        exclude = self.config.filters.exclude_dirs
+        return sorted(self.do_filter(directories, include, exclude))
 
     def prefix_nodes(self) -> None:
         """Assign visual prefix to each Node in the Tree."""
@@ -297,7 +299,6 @@ def validate_root_path(root_dir: str) -> Path:
 
 
 def main(config: TreeGenConfig) -> None:
-    #root_dir: Path, filters: Filters = None
     """Construct and print directory tree.
 
     Args:

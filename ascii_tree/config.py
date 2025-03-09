@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from ascii_tree.filters import Filters
+
 
 class UnicodeSymbols(Enum):
     """Indentation symbols."""
@@ -31,21 +33,31 @@ class TreeGenConfig:
     """Configuration for the tree generator.
 
     Attributes:
-        use_ascii: Whether to use ASCII symbols.
+        use_ascii : bool
+            Whether to use ASCII symbols (default=False).
+        root_dir : Path
+            Path to root of directory tree (default=current directory).
+        filters: Filters
+            File and directory filters (default=None).
+        terminal_output : bool
+            Print tree to console when True (default=True).
+        output_file : Path
+            Path to output file (default=None).
+        debug : bool
+            Show debug messages when True (default=False)
+        verbose : bool
+            Include additional header info when True (default=True).
+        log_level : str
+            Logging level (default: CRITICAL).
     """
     use_ascii: bool = False
     root_dir: Path = Path('.').resolve()
-    include_hidden_dirs: bool = False
-    include_hidden_files: bool = False
-    include_files: None | re.Pattern = None
-    exclude_files: None | re.Pattern = None
-    include_dirs: None | re.Pattern = None
-    exclude_dirs: None | re.Pattern = None
+    filters: Filters | None = None
     terminal_output: bool = True
     output_file: Path | None = None
     debug: bool = False
     verbose: bool = False
-    log_level: str = ''
+    log_level: str = 'CRITICAL'
 
     @property
     def symbols(self):

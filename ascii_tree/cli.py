@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import tomllib
 
+from ascii_tree.config import TreeGenConfig
 from ascii_tree import tree_gen
 from ascii_tree.logging_config import LOGGER_NAME
 
@@ -41,7 +42,7 @@ def validate_path(dir_path: Path) -> Path:
     return resolved_path
 
 
-def main():
+def parse_args():
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
         description='Draw a text representation of a directory tree.'
@@ -157,12 +158,16 @@ def main():
         version=f"%(prog)s {get_version()}"
     )
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def main():
+    """Parse CLI and call main program."""
+    args = parse_args()
     for arg, value in vars(args).items():
         logger.debug(f'{arg}: {value}')
 
     # TODO:
-    tree_gen.main(validate_path(args.root_dir))
+    tree_gen.main(TreeGenConfig())
 
 
 if __name__ == '__main__':

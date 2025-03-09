@@ -34,7 +34,7 @@ from pathlib import Path
 
 from ascii_tree.logging_config import configure_logging, LOGGER_NAME
 from ascii_tree.filters import Filters
-
+from ascii_tree.config import TreeGenConfig, SymbolType
 
 configure_logging()
 logger = logging.getLogger(LOGGER_NAME)
@@ -42,15 +42,6 @@ logger = logging.getLogger(LOGGER_NAME)
 
 SYMBOL_LEN = 4
 """int: The length of all "prefix" symbols is 4 characters."""
-
-
-class Symbol(Enum):
-    """Indentation symbols."""
-    INDENT = '    '
-    CONTINUE = '│   '
-    BRANCH = '├── '
-    FINAL = '└── '
-    DIR = '/'
 
 
 @dataclass
@@ -74,9 +65,9 @@ class Node:
 class Tree:
     """Directory tree."""
 
-    def __init__(self, top: Path, filters: Filters = None) -> None:
-        self.top = top
-        self.filters = filters
+    def __init__(self, config: TreeGenConfig) -> None:
+        #top: Path, filters: Filters = None
+        self.config = config
         self.nodes: dict[Path, Node] = {}
         self.populate()
         self.prefix_nodes()
@@ -91,24 +82,28 @@ class Tree:
             # flush files from deeper directories
             while stack and stack[-1].depth >= node.depth:
                 parent = stack.pop()
-                output_strings = append_file_lines(output_strings, parent)
+                output_strings = append_file_lines(
+                    output_strings, parent, self.config.symbols)
 
             # Add directory line and push to stack if it has files
-            output_strings.append(f"{node.prefix}{node.name}{Symbol.DIR.value}")
+            output_strings.append(
+                f"{node.prefix}{node.name}{self.config.symbols.DIR.value}")
             if node.files:
                 stack.append(node)
 
         # Flush any remaining files after processing all nodes
         while stack:
             parent = stack.pop()
-            output_strings = append_file_lines(output_strings, parent)
+            output_strings = append_file_lines(
+                output_strings, parent, self.config.symbols)
 
         return '\n'.join(output_strings)
 
     def populate(self):
         """Add Nodes to Tree."""
-        root_depth = len(self.top.parts)
-        for root, dirs, files in os.walk(self.top):
+        print(self.config.root_dir)
+        root_depth = len(self.config.root_dir.parts)
+        for root, dirs, files in os.walk(self.config.root_dir):
             directory = Path(root)
             dirs[:] = self.filter_dirs(dirs)
             files[:] = self.filter_files(files)
@@ -139,10 +134,10 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered file list.
         """
-        if self.filters is None:
+        if self.config.exclude_files is None:
             return sorted(files)
         return sorted(self.do_filter(
-            files, self.filters.include_files, self.filters.exclude_files))
+            files, self.config.include_files, self.config.exclude_files))
 
     def filter_dirs(self, directories: list[str]) -> list[str]:
         """Filter and sort directories as required.
@@ -150,10 +145,10 @@ class Tree:
         Returns:
             list[str]: The sorted and filtered directory list.
         """
-        if self.filters is None:
+        if self.config.include_dirs is None and self.config.exclude_dirs is None:
             return sorted(directories)
         return sorted(self.do_filter(
-            directories, self.filters.include_dirs, self.filters.exclude_dirs))
+            directories, self.config.include_dirs, self.config.exclude_dirs))
 
     def prefix_nodes(self) -> None:
         """Assign visual prefix to each Node in the Tree."""
@@ -161,7 +156,7 @@ class Tree:
             try:
                 parent_node = self.nodes[dir_path.parent]
             except KeyError:  # Top level does not have a parent.
-                if dir_path == self.top:
+                if dir_path == self.config.root_dir:
                     continue
                 logger.error('Parent of {} cannot be accessed.'.format(dir_path))
                 raise ValueError(f'Parent of {dir_path} cannot be accessed.')
@@ -174,17 +169,18 @@ class Tree:
                     "Current dirs: {}. {}".format(
                         node.name, parent_node.name, parent_node.dirs, e))
 
-            node.prefix = transform_prefix(parent_node)
+            node.prefix = transform_prefix(parent_node, self.config.symbols)
 
 
-def transform_trailing_prefix(prefix: str) -> str:
+def transform_trailing_prefix(prefix: str,
+                              symbols: SymbolType) -> str:
     """Replace final symbol for proper continuation to next level."""
-    prefix = replace_trailing_symbol(prefix, Symbol.CONTINUE, Symbol.BRANCH)
-    prefix = replace_trailing_symbol(prefix, Symbol.INDENT, Symbol.FINAL)
+    prefix = replace_trailing_symbol(prefix, symbols.CONTINUE, symbols.BRANCH)
+    prefix = replace_trailing_symbol(prefix, symbols.INDENT, symbols.FINAL)
     return prefix
 
 
-def transform_prefix(parent: Node) -> str:
+def transform_prefix(parent: Node, symbols: SymbolType) -> str:
     """Transform parent prefix to create prefix for directory node.
 
     Prefixes, representing indentation, branches and continuation, are
@@ -202,23 +198,25 @@ def transform_prefix(parent: Node) -> str:
 
     Args:
         parent: The parent node.
+        symbols: ASCII or Unicode symbol Enum.
 
     Returns:
         str: The constructed prefix for the node.
+        symbols: ASCII or Unicode symbol Enums.
     """
-    new_prefix = transform_trailing_prefix(parent.prefix)
-    new_prefix = replace_leading_symbol(new_prefix, Symbol.CONTINUE, Symbol.BRANCH)
+    new_prefix = transform_trailing_prefix(parent.prefix, symbols)
+    new_prefix = replace_leading_symbol(new_prefix, symbols.CONTINUE, symbols.BRANCH)
 
     parent_has_siblings = parent.dirs or parent.files
     if parent_has_siblings:
-        new_prefix += Symbol.BRANCH.value
+        new_prefix += symbols.BRANCH.value
     else:
-        new_prefix += Symbol.FINAL.value
+        new_prefix += symbols.FINAL.value
 
     return new_prefix
 
 
-def append_file_lines(file_lines: list[str], node: Node) -> list[str]:
+def append_file_lines(file_lines: list[str], node: Node, symbols) -> list[str]:
     """Append file lines, ensuring termination with FINAL prefix.
 
     The file prefix is derived from its parent by replacing the final
@@ -231,12 +229,12 @@ def append_file_lines(file_lines: list[str], node: Node) -> list[str]:
     Returns:
         list[str]: The updated list.
     """
-    file_prefix = transform_trailing_prefix(node.prefix)
+    file_prefix = transform_trailing_prefix(node.prefix, symbols)
 
     try:
         for file in node.files[:-1]:
-            file_lines.append(f'{file_prefix}{Symbol.BRANCH.value}{file}')
-        file_lines.append(f'{file_prefix}{Symbol.FINAL.value}{node.files[-1]}')
+            file_lines.append(f'{file_prefix}{symbols.BRANCH.value}{file}')
+        file_lines.append(f'{file_prefix}{symbols.FINAL.value}{node.files[-1]}')
     except IndexError:
         logger.critical("Unexpected empty files list in node: %s (path: %s).",
                         node.name, node.dir_path)
@@ -246,7 +244,7 @@ def append_file_lines(file_lines: list[str], node: Node) -> list[str]:
 
 
 def replace_leading_symbol(
-        prefix: str, new_symbol: Symbol, match_symbol: Symbol) -> str:
+        prefix: str, new_symbol: Enum, match_symbol: Enum) -> str:
     """Replace initial symbol in prefix string when it matches specified symbol.
 
         Args:
@@ -263,7 +261,7 @@ def replace_leading_symbol(
 
 
 def replace_trailing_symbol(
-        prefix: str, new_symbol: Symbol, match_symbol: Symbol) -> str:
+        prefix: str, new_symbol: Enum, match_symbol: Enum) -> str:
     """Replace final symbol in prefix string when it matches specified symbol.
 
         Args:
@@ -298,9 +296,14 @@ def validate_root_path(root_dir: str) -> Path:
         raise ValueError(f"Directory not valid: '{root_dir}'.")
 
 
-def main(root_dir: Path, filters: Filters = None) -> None:
-    """Construct and print directory tree."""
-    nodes: Tree = Tree(root_dir, filters)
+def main(config: TreeGenConfig) -> None:
+    #root_dir: Path, filters: Filters = None
+    """Construct and print directory tree.
+
+    Args:
+        config: A TreeGenConfig object holding configuration options.
+    """
+    nodes: Tree = Tree(config)
     print(nodes)
     with open("results.txt", 'wt', encoding='utf-8') as fp:
         fp.write(str(nodes))
@@ -309,13 +312,16 @@ def main(root_dir: Path, filters: Filters = None) -> None:
 if __name__ == '__main__':
     test_dir = "../testing_data/Test_3"
 
+    default_config = TreeGenConfig()
     try:
-        root_path = validate_root_path(test_dir)
+        default_config.root_path = validate_root_path(test_dir)
     except ValueError as exc:
         print(f"{exc}")
         sys.exit(1)
 
-    excluded = Filters(exclude_hidden_dirs=False,
-                       # exclude_dirs=['v*'],
-                       exclude_hidden_files=False)
-    main(root_path, excluded)
+    default_config.filters = Filters(
+        exclude_hidden_dirs=False,
+        # exclude_dirs=['v*'],
+        exclude_hidden_files=False)
+
+    main(default_config)

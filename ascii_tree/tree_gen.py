@@ -320,9 +320,6 @@ if __name__ == '__main__':
         print(f"{exc}")
         sys.exit(1)
 
-    default_config.filters = Filters(
-        exclude_hidden_dirs=False,
-        # exclude_dirs=['v*'],
-        exclude_hidden_files=False)
+    default_config.filters = Filters()
 
     main(default_config)

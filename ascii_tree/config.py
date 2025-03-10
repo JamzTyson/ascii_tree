@@ -1,5 +1,5 @@
 """Configuration options."""
-import re
+
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -33,28 +33,31 @@ class TreeGenConfig:
     """Configuration for the tree generator.
 
     Attributes:
-        use_ascii : bool
-            Whether to use ASCII symbols (default=False).
         root_dir : Path
-            Path to root of directory tree (default=current directory).
+            Root of directory tree (default=current directory).
         filters: Filters
             File and directory filters (default=None).
         terminal_output : bool
             Print tree to console when True (default=True).
         output_file : Path
-            Path to output file (default=None).
+            Output file (default=None).
         debug : bool
             Show debug messages when True (default=False)
         verbose : bool
             Include additional header info when True (default=True).
         log_level : str
             Logging level (default: CRITICAL).
+        use_ascii : bool
+            Whether to use ASCII symbols (default=False).
     """
-    use_ascii: bool = False
     root_dir: Path = Path('.').resolve()
-    filters: Filters | None = None
+    depth: int = 0  # Unrestricted.
+    dirs_only: bool = False
+    filters: Filters = Filters()
     terminal_output: bool = True
     output_file: Path | None = None
+    use_ascii: bool = False
+    # TODO:
     debug: bool = False
     verbose: bool = False
     log_level: str = 'CRITICAL'

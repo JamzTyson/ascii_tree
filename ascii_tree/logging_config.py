@@ -16,6 +16,10 @@ import logging
 import tempfile
 from pathlib import Path
 
+#TODO: Consider switching to Loguru.
+
+_logger_configured = False  # Guard flag.
+
 LOGGING_ENABLED: bool = True
 LOGGER_NAME: str = 'ascii_tree'
 
@@ -53,6 +57,11 @@ def _validate_log_file(file_path: Path) -> None:
 
 def configure_logging() -> None:
     """Configures logging for the application."""
+    global _logger_configured
+    if _logger_configured:  # Prevent multiple configurations
+        return
+    _logger_configured = True
+
     logger = logging.getLogger(LOGGER_NAME)
 
     if not LOGGING_ENABLED:

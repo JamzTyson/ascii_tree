@@ -1,7 +1,12 @@
 """Manages file and directory filtering."""
 
 import fnmatch
+import logging
 import re
+
+from ascii_tree.logging_config import LOGGER_NAME
+
+logger = logging.getLogger(LOGGER_NAME)
 
 
 PatternInput = str | list[str] | None  # Alias for pattern input.
@@ -13,48 +18,44 @@ class Filters:
 
     def __init__(
             self,
-            exclude_hidden_dirs: bool = True,
-            exclude_hidden_files: bool = True,
-            include_dirs: PatternInput = None,
+            show_hidden_files: bool = False,
+            show_hidden_dirs: bool = False,
             include_files: PatternInput = None,
-            exclude_dirs: PatternInput = None,
             exclude_files: PatternInput = None,
+            include_dirs: PatternInput = None,
+            exclude_dirs: PatternInput = None,
     ) -> None:
         """Initialise Unix-style filename patterns.
 
         Args:
-            exclude_hidden_dirs: Whether to exclude hidden directories.
-            exclude_hidden_files: Whether to exclude hidden files.
+            show_hidden_files: Whether to show hidden directories.
+            show_hidden_dirs: Whether to show hidden files.
             include_dirs: Patterns to include directories.
             include_files: Patterns to include files.
             exclude_dirs: Patterns to exclude directories.
             exclude_files: Patterns to exclude files.
         """
-        self._include_dirs = _sanitize_patterns(include_dirs)
+        if not show_hidden_files:
+            exclude_files = self.append_pattern(exclude_files, Filters.unix_hidden)
+        if not show_hidden_dirs:
+            exclude_dirs = self.append_pattern(exclude_dirs, Filters.unix_hidden)
+
         self._include_files = _sanitize_patterns(include_files)
-        self._exclude_dirs = _sanitize_patterns(exclude_dirs)
         self._exclude_files = _sanitize_patterns(exclude_files)
 
-        # If Linux / macOS, add patterns for hidden files/directories.
-        if exclude_hidden_dirs and Filters.unix_hidden not in self._exclude_dirs:
-            self._exclude_dirs.append(Filters.unix_hidden)
-        if exclude_hidden_files and Filters.unix_hidden not in self._exclude_files:
-            self._exclude_files.append(Filters.unix_hidden)
+        self._include_dirs = _sanitize_patterns(include_dirs)
+        self._exclude_dirs = _sanitize_patterns(exclude_dirs)
 
-    @property
-    def include_dirs(self) -> re.Pattern | None:
-        """Return a single regex for directory inclusion patterns."""
-        return _combine_patterns(self._include_dirs)
+    @staticmethod
+    def append_pattern(pattern: PatternInput, item: str) -> PatternInput:
+        """Safely append a string to PatternInput."""
+        if pattern is None:
+            return item
+        if isinstance(pattern, str):
+            return [pattern, item]
+        return pattern.append(item)
 
-    @include_dirs.setter
-    def include_dirs(self, patterns: PatternInput) -> None:
-        """Set list of patterns that define included directories.
-
-        Raises:
-            ValueError: if `patterns` is invalid.
-        """
-        self._include_dirs = _sanitize_patterns(patterns)
-
+    # File Filters.
     @property
     def include_files(self) -> re.Pattern | None:
         """Return a single regex for file inclusion patterns."""
@@ -70,20 +71,6 @@ class Filters:
         self._include_files = _sanitize_patterns(patterns)
 
     @property
-    def exclude_dirs(self) -> re.Pattern | None:
-        """Return a single regex for directory exclusion patterns."""
-        return _combine_patterns(self._exclude_dirs)
-
-    @exclude_dirs.setter
-    def exclude_dirs(self, patterns: PatternInput) -> None:
-        """Set list of patterns that define excluded directories.
-
-        Raises:
-            ValueError: if `patterns` is invalid.
-        """
-        self._exclude_dirs = _sanitize_patterns(patterns)
-
-    @property
     def exclude_files(self) -> re.Pattern | None:
         """Return a single regex for file exclusion patterns."""
         return _combine_patterns(self._exclude_files)
@@ -96,6 +83,35 @@ class Filters:
             ValueError: if `patterns` is invalid.
         """
         self._exclude_files = _sanitize_patterns(patterns)
+
+    # Directory filters:
+    @property
+    def include_dirs(self) -> re.Pattern | None:
+        """Return a single regex for directory inclusion patterns."""
+        return _combine_patterns(self._include_dirs)
+
+    @include_dirs.setter
+    def include_dirs(self, patterns: PatternInput) -> None:
+        """Set list of patterns that define included directories.
+
+        Raises:
+            ValueError: if `patterns` is invalid.
+        """
+        self._include_dirs = _sanitize_patterns(patterns)
+
+    @property
+    def exclude_dirs(self) -> re.Pattern | None:
+        """Return a single regex for directory exclusion patterns."""
+        return _combine_patterns(self._exclude_dirs)
+
+    @exclude_dirs.setter
+    def exclude_dirs(self, patterns: PatternInput) -> None:
+        """Set list of patterns that define excluded directories.
+
+        Raises:
+            ValueError: if `patterns` is invalid.
+        """
+        self._exclude_dirs = _sanitize_patterns(patterns)
 
 
 def _sanitize_patterns(patterns: PatternInput) -> list[str]:

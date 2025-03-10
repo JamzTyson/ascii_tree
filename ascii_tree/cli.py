@@ -2,13 +2,16 @@
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 import tomllib
 
 from ascii_tree.config import TreeGenConfig
 from ascii_tree import tree_gen
-from ascii_tree.logging_config import LOGGER_NAME
+from ascii_tree.logging_config import configure_logging, LOGGER_NAME
+from ascii_tree.filters import Filters
 
+configure_logging()
 logger = logging.getLogger(LOGGER_NAME)
 
 
@@ -36,15 +39,27 @@ def validate_path(dir_path: Path) -> Path:
     Returns:
         Path: The absolute path.
     """
-    resolved_path = dir_path.resolve(strict=True)
+    try:
+        resolved_path = dir_path.resolve(strict=True)
+    except OSError:
+        raise FileNotFoundError(f'Path "{dir_path}" does not exist.')
     if not resolved_path.is_dir():
         raise NotADirectoryError(f'Path "{resolved_path}" is not a directory.')
     return resolved_path
 
 
-def parse_args():
+def positive_int(value):
+    """Validate positive integer."""
+    int_value = int(value)
+    if int_value < 1:
+        raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
+    return int_value
+
+
+def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
+        prog='asciitree',
         description='Draw a text representation of a directory tree.'
     )
 
@@ -57,27 +72,32 @@ def parse_args():
         type=Path
     )
 
-    # General options.
-    general_group = parser.add_argument_group('General Options')
-    general_group.add_argument(
+    # Tree display options.
+    tree_group = parser.add_argument_group('Tree Options')
+
+    tree_group.add_argument(
         '-a', '--all',
-        help='Show all files and directories, including hidden ones (default: False).',
+        help='''Show all files and directories, including hidden ones,
+        up to specified depth (default: False).''',
         action='store_true'
     )
-
-    # Display options.
-    display_group = parser.add_argument_group('Display Options')
-    display_group.add_argument(
+    tree_group.add_argument(
+        '-L', '--max-depth',
+        type=positive_int,
+        default=None,
+        help='Maximum depth for traversal (default: unlimited).'
+    )
+    tree_group.add_argument(
         '-d', '--dirs-only',
         help='Display only directories, suppress files (default: show both).',
         action='store_true'
     )
-    display_group.add_argument(
+    tree_group.add_argument(
         '-hf', '--hidden-files',
         help='Include hidden files (default: False).',
         action='store_true'
     )
-    display_group.add_argument(
+    tree_group.add_argument(
         '-hd', '--hidden-dirs',
         help='Include hidden directories (default: False).',
         action='store_true'
@@ -85,10 +105,11 @@ def parse_args():
 
     # Pattern filtering options.
     filter_group = parser.add_argument_group('Pattern Filtering Options')
+
     filter_group.add_argument(
         '-if', '--include-files',
         nargs='*',
-        default=['*'],
+        default=[],
         help='File patterns to include (default: all).'
     )
     filter_group.add_argument(
@@ -116,12 +137,6 @@ def parse_args():
         '-q', '--quiet',
         help='Disable output to terminal (default: enabled).',
         action='store_true'
-    )
-    output_group.add_argument(
-        '-L', '--max-depth',
-        type=int,
-        default=None,
-        help='Maximum depth for traversal (default: unlimited).'
     )
     output_group.add_argument(
         '-o', '--output',
@@ -160,14 +175,69 @@ def parse_args():
 
     return parser.parse_args()
 
+
+def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
+    """Convert the parsed arguments into a TreeGenConfig instance."""
+    config = TreeGenConfig()
+
+    # Configure root directory.
+    try:
+        config.root_dir = validate_path(args.root_dir)
+    except (NotADirectoryError, FileNotFoundError) as exc:
+        logger.critical(exc)
+        print(f"Error: {exc}")
+        sys.exit(1)
+
+    # Configure tree display.
+    if args.all:  # All directories and files up to specified depth.
+        args.dirs_only = False
+        args.hidden_files = True
+        args.hidden_dirs = True
+        args.include_files = []
+        args.exclude_files = []
+        args.include_dirs = []
+        args.exclude_dirs = []
+
+    else:
+        if not args.hidden_files:
+            args.exclude_files.append(Filters.unix_hidden)
+        if not args.hidden_dirs:
+            args.exclude_dirs.append(Filters.unix_hidden)
+
+        config.dirs_only = args.dirs_only
+
+    # Maximum depth applied even with -a / --all flag.
+    if args.max_depth:
+        config.depth = args.max_depth
+
+    # Pattern filtering options.
+    config.filters.include_files = args.include_files
+    config.filters.exclude_files = args.exclude_files
+    config.filters.include_dirs = args.include_dirs
+    config.filters.exclude_dirs = args.exclude_dirs
+
+    # Output options.
+    config.terminal_output = not args.quiet
+    config.output_file = args.output  # TODO: Validate before committing.
+    config.use_ascii = args.ascii
+
+    logger.debug(f"FILTERS: {config.filters.exclude_files}, "
+                 f"{config.filters.exclude_dirs}")
+    logger.debug(f"MAX_DEPTH: {config.depth}")
+    logger.debug(f"Terminal output: {config.terminal_output}")
+    logger.debug(f"Output File: {config.output_file}\n")
+    return config
+
+
 def main():
     """Parse CLI and call main program."""
     args = parse_args()
+    config = config_from_args(args)
+
     for arg, value in vars(args).items():
         logger.debug(f'{arg}: {value}')
 
-    # TODO:
-    tree_gen.main(TreeGenConfig())
+    tree_gen.main(config)
 
 
 if __name__ == '__main__':

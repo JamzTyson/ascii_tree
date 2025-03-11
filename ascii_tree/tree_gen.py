@@ -106,9 +106,13 @@ class Tree:
         root_depth = len(self.config.root_dir.parts)
         for root, dirs, files in os.walk(self.config.root_dir):
             directory = Path(root)
-            dirs[:] = self.filter_dirs(dirs)
             files[:] = self.filter_files(files)
+            # Limit directory depth
             depth = len(directory.parts) - root_depth
+            if depth < self.config.max_depth:
+                dirs[:] = self.filter_dirs(dirs)
+            else:
+                dirs.clear()
             self.nodes[directory] = Node(directory, dirs, files, depth)
 
     @staticmethod

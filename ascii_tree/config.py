@@ -51,7 +51,7 @@ class TreeGenConfig:
             Whether to use ASCII symbols (default=False).
     """
     root_dir: Path = Path('.').resolve()
-    depth: int = 0  # Unrestricted.
+    max_depth: int = -1  # Unrestricted.
     dirs_only: bool = False
     filters: Filters = Filters()
     terminal_output: bool = True

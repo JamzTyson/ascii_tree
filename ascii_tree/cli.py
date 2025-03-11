@@ -33,7 +33,7 @@ def get_version() -> str:
 def positive_int(value):
     """Validate positive integer."""
     int_value = int(value)
-    if int_value < 1:
+    if int_value < 0:
         raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
     return int_value
 
@@ -60,14 +60,14 @@ def parse_args() -> argparse.Namespace:
     tree_group.add_argument(
         '-a', '--all',
         help='''Show all files and directories, including hidden ones,
-        up to specified depth (default: False).''',
+        up to specified max_depth (default: False).''',
         action='store_true'
     )
     tree_group.add_argument(
         '-L', '--max-depth',
         type=positive_int,
         default=None,
-        help='Maximum depth for traversal (default: unlimited).'
+        help='Maximum max_depth for traversal (default: unlimited).'
     )
     tree_group.add_argument(
         '-d', '--dirs-only',
@@ -170,7 +170,7 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
         sys.exit(f"Error: {exc}")
 
     # Configure tree display.
-    if args.all:  # All directories and files up to specified depth.
+    if args.all:  # All directories and files up to specified max_depth.
         args.dirs_only = False
         args.hidden_files = True
         args.hidden_dirs = True
@@ -189,7 +189,7 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
 
     # Maximum depth applied even with -a / --all flag.
     if args.max_depth:
-        config.depth = args.max_depth
+        config.max_depth = args.max_depth
 
     # Pattern filtering options.
     config.filters.include_files = args.include_files
@@ -204,7 +204,7 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
 
     logger.debug(f"FILTERS: {config.filters.exclude_files}, "
                  f"{config.filters.exclude_dirs}")
-    logger.debug(f"MAX_DEPTH: {config.depth}")
+    logger.debug(f"MAX_DEPTH: {config.max_depth}")
     logger.debug(f"Terminal output: {config.terminal_output}")
     logger.debug(f"Output File: {config.output_file}\n")
     return config

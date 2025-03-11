@@ -10,6 +10,7 @@ from ascii_tree.config import TreeGenConfig
 from ascii_tree import tree_gen
 from ascii_tree.logging_config import configure_logging, LOGGER_NAME
 from ascii_tree.filters import Filters
+from ascii_tree.validate import resolve_directory_path
 
 configure_logging()
 logger = logging.getLogger(LOGGER_NAME)
@@ -27,25 +28,6 @@ def get_version() -> str:
         pyproject_data = tomllib.load(f)
 
     return pyproject_data.get("tool", {}).get("poetry", {}).get("version", "unknown")
-
-
-def validate_path(dir_path: Path) -> Path:
-    """Return absolute path if dir_path resolves to a valid directory.
-
-    Raises:
-        FileNotFoundError: If the path does not exist.
-        NotADirectoryError: If the path exists but is not a directory.
-
-    Returns:
-        Path: The absolute path.
-    """
-    try:
-        resolved_path = dir_path.resolve(strict=True)
-    except OSError:
-        raise FileNotFoundError(f'Path "{dir_path}" does not exist.')
-    if not resolved_path.is_dir():
-        raise NotADirectoryError(f'Path "{resolved_path}" is not a directory.')
-    return resolved_path
 
 
 def positive_int(value):
@@ -182,11 +164,10 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
 
     # Configure root directory.
     try:
-        config.root_dir = validate_path(args.root_dir)
-    except (NotADirectoryError, FileNotFoundError) as exc:
+        config.root_dir = resolve_directory_path(args.root_dir)
+    except ValueError as exc:
         logger.critical(exc)
-        print(f"Error: {exc}")
-        sys.exit(1)
+        sys.exit(f"Error: {exc}")
 
     # Configure tree display.
     if args.all:  # All directories and files up to specified depth.

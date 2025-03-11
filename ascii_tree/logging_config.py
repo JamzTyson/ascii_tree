@@ -13,8 +13,11 @@ Raises:
 """
 
 import logging
+import sys
 import tempfile
 from pathlib import Path
+
+from ascii_tree.validate import validate_file_path
 
 #TODO: Consider switching to Loguru.
 
@@ -33,26 +36,6 @@ FILE_LOG_LEVEL: int = logging.WARNING
 
 _LOG_DIR: Path = Path(tempfile.gettempdir())
 LOG_FILE: Path = _LOG_DIR / (LOGGER_NAME + '.log')
-
-
-def _validate_log_file(file_path: Path) -> None:
-    """Ensure log file directory exists and is writable.
-
-    Args:
-        file_path: The path to validate.
-
-    Notes:
-        The parent directory is expected to exist. If you are happy for
-        ancestors to be created, change mkdir to `parents=True`.
-
-    Raises:
-        OSError: On any filesystem error that prevents logging.
-    """
-    try:
-        file_path.parent.mkdir(exist_ok=True, parents=False)
-        file_path.touch(exist_ok=True)
-    except OSError as exc:
-        raise OSError(f"Invalid LOG_FILE '{file_path}': {exc}") from exc
 
 
 def configure_logging() -> None:
@@ -76,7 +59,11 @@ def configure_logging() -> None:
     logger.propagate = False
 
     if LOG_TO_FILE:
-        _validate_log_file(LOG_FILE)
+        try:
+            validate_file_path(LOG_FILE)
+        except OSError as exc:
+            logger.critical(f"Error: {exc}")
+            sys.exit(f"Error: {exc}")
         file_handler = logging.FileHandler(LOG_FILE)
         file_handler.setLevel(FILE_LOG_LEVEL)
         file_handler.setFormatter(logging.Formatter(FILE_LOG_FORMAT))

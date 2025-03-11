@@ -35,6 +35,7 @@ from pathlib import Path
 from ascii_tree.logging_config import configure_logging, LOGGER_NAME
 from ascii_tree.filters import Filters
 from ascii_tree.config import TreeGenConfig, SymbolType
+from ascii_tree.validate import resolve_directory_path
 
 configure_logging()
 logger = logging.getLogger(LOGGER_NAME)
@@ -279,25 +280,6 @@ def replace_trailing_symbol(
     return prefix
 
 
-def validate_root_path(root_dir: str) -> Path:
-    """Validate root directory and return as an absolute path.
-
-    Raises:
-        ValueError: root_dir argument is not a valid file path.
-
-    Returns:
-        Path: Absolute Path
-    """
-    root_as_path = Path(root_dir)
-
-    if root_as_path.exists() and root_as_path.is_dir():
-        root_as_path = root_as_path.resolve()
-        logger.debug(f"Root path={root_as_path}")
-        return root_as_path
-    else:
-        raise ValueError(f"Directory not valid: '{root_dir}'.")
-
-
 def main(config: TreeGenConfig) -> None:
     """Construct and print directory tree.
 
@@ -315,7 +297,7 @@ if __name__ == '__main__':
 
     default_config = TreeGenConfig()
     try:
-        default_config.root_path = validate_root_path(test_dir)
+        default_config.root_path = resolve_directory_path(test_dir)
     except ValueError as exc:
         print(f"{exc}")
         sys.exit(1)

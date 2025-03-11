@@ -33,9 +33,7 @@ from enum import Enum
 from pathlib import Path
 
 from ascii_tree.logging_config import configure_logging, LOGGER_NAME
-from ascii_tree.filters import Filters
 from ascii_tree.config import TreeGenConfig, SymbolType
-from ascii_tree.validate import resolve_directory_path
 
 configure_logging()
 logger = logging.getLogger(LOGGER_NAME)

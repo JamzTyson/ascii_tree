@@ -293,15 +293,5 @@ def main(config: TreeGenConfig) -> None:
 
 
 if __name__ == '__main__':
-    test_dir = "../testing_data/Test_3"
-
     default_config = TreeGenConfig()
-    try:
-        default_config.root_path = resolve_directory_path(test_dir)
-    except ValueError as exc:
-        print(f"{exc}")
-        sys.exit(1)
-
-    default_config.filters = Filters()
-
     main(default_config)

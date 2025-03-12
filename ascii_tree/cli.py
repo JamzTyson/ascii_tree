@@ -1,19 +1,14 @@
 """Command line interface for ascii_tree."""
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 import tomllib
 
 from ascii_tree.config import TreeGenConfig
 from ascii_tree import tree_gen
-from ascii_tree.logging_config import configure_logging, LOGGER_NAME
 from ascii_tree.filters import Filters
 from ascii_tree.validate import resolve_directory_path
-
-configure_logging()
-logger = logging.getLogger(LOGGER_NAME)
 
 
 def get_version() -> str:
@@ -21,7 +16,6 @@ def get_version() -> str:
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
 
     if not pyproject_path.exists():
-        logger.warning("pyproject.toml not found, returning default version.")
         return "unknown"
 
     with pyproject_path.open("rb") as f:
@@ -166,7 +160,6 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
     try:
         config.root_dir = resolve_directory_path(args.root_dir)
     except ValueError as exc:
-        logger.critical(exc)
         sys.exit(f"Error: {exc}")
 
     # Configure tree display.
@@ -202,11 +195,6 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
     config.output_file = args.output  # TODO: Validate before committing.
     config.use_ascii = args.ascii
 
-    logger.debug(f"FILTERS: {config.filters.exclude_files}, "
-                 f"{config.filters.exclude_dirs}")
-    logger.debug(f"MAX_DEPTH: {config.max_depth}")
-    logger.debug(f"Terminal output: {config.terminal_output}")
-    logger.debug(f"Output File: {config.output_file}\n")
     return config
 
 
@@ -214,10 +202,6 @@ def main():
     """Parse CLI and call main program."""
     args = parse_args()
     config = config_from_args(args)
-
-    for arg, value in vars(args).items():
-        logger.debug(f'{arg}: {value}')
-
     tree_gen.main(config)
 
 

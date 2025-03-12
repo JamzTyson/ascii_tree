@@ -16,15 +16,11 @@ Main Features:
         Produces a clear and visually appealing text representation of the
         tree structure.
 
-    Optional Logging:
-        Configurable through logging_config.py
-
 Dependencies:
     Python >= 3.10
 
 """
 
-import logging
 import os
 import re
 import sys
@@ -32,11 +28,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from ascii_tree.logging_config import configure_logging, LOGGER_NAME
 from ascii_tree.config import TreeGenConfig, SymbolType
 
-configure_logging()
-logger = logging.getLogger(LOGGER_NAME)
 
 
 SYMBOL_LEN = 4
@@ -163,16 +156,15 @@ class Tree:
             except KeyError:  # Top level does not have a parent.
                 if dir_path == self.config.root_dir:
                     continue
-                logger.error('Parent of {} cannot be accessed.'.format(dir_path))
-                raise ValueError(f'Parent of {dir_path} cannot be accessed.')
+                raise ValueError('Parent of {dir_path} cannot be accessed.')
 
             try:
                 parent_node.dirs.remove(node.name)
             except ValueError as e:
-                logger.warning(
-                    "Failed to remove '{}' from parent '{}' dirs. "
-                    "Current dirs: {}. {}".format(
-                        node.name, parent_node.name, parent_node.dirs, e))
+                warning = (f"Warning: Failed to remove '{node.name}' "
+                           f"from parent '{parent_node.name}' dirs. "
+                           f"Current dirs: {parent_node.dirs}. {e}")
+                print(warning)
 
             node.prefix = transform_prefix(parent_node, self.config.symbols)
 
@@ -235,16 +227,12 @@ def append_file_lines(file_lines: list[str], node: Node, symbols) -> list[str]:
         list[str]: The updated list.
     """
     file_prefix = transform_trailing_prefix(node.prefix, symbols)
-
     try:
         for file in node.files[:-1]:
             file_lines.append(f'{file_prefix}{symbols.BRANCH.value}{file}')
         file_lines.append(f'{file_prefix}{symbols.FINAL.value}{node.files[-1]}')
     except IndexError:
-        logger.critical("Unexpected empty files list in node: %s (path: %s).",
-                        node.name, node.dir_path)
-        sys.exit(1)
-
+        sys.exit(f"Empty files list in '{node.name}': {node.dir_path}).")
     return file_lines
 
 

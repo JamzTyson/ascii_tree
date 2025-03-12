@@ -1,12 +1,7 @@
 """Manages file and directory filtering."""
 
 import fnmatch
-import logging
 import re
-
-from ascii_tree.logging_config import LOGGER_NAME
-
-logger = logging.getLogger(LOGGER_NAME)
 
 
 PatternInput = str | list[str] | None  # Alias for pattern input.

@@ -47,6 +47,11 @@ def parse_args() -> argparse.Namespace:
         default='.',
         type=Path
     )
+    parser.add_argument(
+        '-V', '--version',
+        action='version',
+        version=f"%(prog)s {get_version()}"
+    )
 
     # Tree display options.
     tree_group = parser.add_argument_group('Tree Options')
@@ -137,12 +142,6 @@ def parse_args() -> argparse.Namespace:
         help='Include OS info and full path to root (default: False).',
         action='store_true'
     )
-    logging_group.add_argument(
-        '-V', '--version',
-        action='version',
-        version=f"%(prog)s {get_version()}"
-    )
-
     return parser.parse_args()
 
 

@@ -21,30 +21,30 @@ def resolve_directory_path(root_dir: str) -> Path:
         raise ValueError(f"Directory not valid: '{root_dir}'.")
 
 
-def validate_file_path(file_path: Path) -> None:
+def validate_file_path(file_path: Path) -> Path:
     """Ensure file directory exists and is writable.
-
-    Creates the immediate parent directory if missing, but to
-    prevent accidental deep directory creation, it does
-    not create other missing directories.
 
     Args:
         file_path: The path to validate.
 
     Raises:
         OSError: On any filesystem error that prevents writing.
+
+    Return:
+        Absolute path, resolved from file_path.
     """
-    file_exist = file_path.exists()
+    resolved_path = file_path.expanduser().resolve()
+    file_exist = resolved_path.exists()
 
     try:
-        file_path.parent.mkdir(exist_ok=True, parents=False)
-        file_path.touch(exist_ok=False)
-    except OSError as exc:
-        raise OSError(f"Invalid file path '{file_path}': {exc}") from exc
+        resolved_path.touch(exist_ok=True)
+    except OSError:
+        raise OSError(f"Invalid file path '{file_path}' ({resolved_path})")
     finally:
-        if not file_exist and file_path.exists():
+        if not file_exist and resolved_path.exists():
             # Avoid masking original error if (unlikely) failure.
             try:
-                file_path.unlink()
+                resolved_path.unlink()
             except OSError:
                 pass
+    return resolved_path

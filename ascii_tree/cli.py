@@ -8,7 +8,7 @@ import tomllib
 from ascii_tree.config import TreeGenConfig
 from ascii_tree import tree_gen
 from ascii_tree.filters import Filters
-from ascii_tree.validate import resolve_directory_path
+from ascii_tree.validate import resolve_directory_path, validate_file_path
 
 
 def get_version() -> str:
@@ -47,6 +47,8 @@ def parse_args() -> argparse.Namespace:
         default='.',
         type=Path
     )
+
+    # Options.
     parser.add_argument(
         '-V', '--version',
         action='version',
@@ -185,7 +187,11 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
 
     # Output options.
     config.terminal_output = not args.quiet
-    config.output_file = args.output  # TODO: Validate before committing.
+    if args.output:
+        try:
+            config.output_file = validate_file_path(args.output)
+        except OSError as exc:
+            sys.exit(f'Error: {exc}')
     config.use_ascii = args.ascii
 
     return config

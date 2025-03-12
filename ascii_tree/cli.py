@@ -138,12 +138,6 @@ def parse_args() -> argparse.Namespace:
         action='store_true'
     )
     logging_group.add_argument(
-        '-l', '--log',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        default='CRITICAL',
-        help='Logging level (default: CRITICAL).'
-    )
-    logging_group.add_argument(
         '-V', '--version',
         action='version',
         version=f"%(prog)s {get_version()}"

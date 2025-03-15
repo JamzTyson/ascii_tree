@@ -131,15 +131,7 @@ def parse_args() -> argparse.Namespace:
         help='Use ASCII branch characters instead of Unicode (default: use Unicode).',
         action='store_true'
     )
-
-    # Logging and debugging.
-    logging_group = parser.add_argument_group('Logging and Debugging')
-    logging_group.add_argument(
-        '-D', '--debug',
-        help='Show debug messages (default: False).',
-        action='store_true'
-    )
-    logging_group.add_argument(
+    output_group.add_argument(
         '-v', '--verbose',
         help='Include OS info and full path to root (default: False).',
         action='store_true'
@@ -186,13 +178,24 @@ def config_from_args(args: argparse.Namespace) -> TreeGenConfig:
     config.filters.exclude_dirs = args.exclude_dirs
 
     # Output options.
+    if args.quiet and not args.output:
+        # Nothing to do.
+        sys.exit('Terminal output and file output disabled by options.')
+
+    # Disable terminal output.
     config.terminal_output = not args.quiet
+
     if args.output:
         try:
             config.output_file = validate_file_path(args.output)
         except OSError as exc:
             sys.exit(f'Error: {exc}')
+
+    # Use ASCII rather than Unicode symbols.
     config.use_ascii = args.ascii
+
+    # Include OS info and full path to root.
+    config.verbose = args.verbose
 
     return config
 

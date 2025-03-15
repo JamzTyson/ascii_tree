@@ -22,6 +22,7 @@ Dependencies:
 """
 
 import os
+import platform
 import re
 import sys
 from dataclasses import dataclass
@@ -31,9 +32,14 @@ from pathlib import Path
 from ascii_tree.config import TreeGenConfig, SymbolType
 
 
-
 SYMBOL_LEN = 4
 """int: The length of all "prefix" symbols is 4 characters."""
+
+
+def system_info():
+    """Return system info as string."""
+    system, node, _, version, _, _ = platform.uname()
+    return f'{node} : {system}\n{version}'
 
 
 @dataclass
@@ -93,7 +99,6 @@ class Tree:
 
     def populate(self):
         """Add Nodes to Tree."""
-        print(self.config.root_dir)
         root_depth = len(self.config.root_dir.parts)
         for root, dirs, files in os.walk(self.config.root_dir):
             directory = Path(root)
@@ -277,9 +282,17 @@ def main(config: TreeGenConfig) -> None:
         config: A TreeGenConfig object holding configuration options.
     """
     nodes: Tree = Tree(config)
-    print(nodes)
-    with open("results.txt", 'wt', encoding='utf-8') as fp:
-        fp.write(str(nodes))
+    if config.terminal_output:
+        if config.verbose:
+            print(system_info())
+            print(config.root_dir, '\n')
+        print(nodes)
+    if config.output_file:
+        with open(config.output_file, 'wt', encoding='utf-8') as fp:
+            if config.verbose:
+                fp.write(f'{system_info()}\n')
+                fp.write(f'{config.root_dir}\n\n')
+            fp.write(str(nodes))
 
 
 if __name__ == '__main__':
